@@ -1,0 +1,20 @@
+dependencies {
+
+	implementation(group: "io.undertow", name: "undertow-core", version: "2.2.5.Final") { 
+		changing = false 
+	}
+	implementation(group: "org.jboss.logging", name: "jboss-logging", version: "3.4.0.Final") { 
+		changing = false 
+	}
+	implementation(group: "org.mockito", name: "mockito-core", version: "3.3.3") { 
+		changing = false 
+	}
+	implementation(group: "junit", name: "junit", version: "4.13.1") { 
+		changing = false 
+	}
+
+	configurations.all {
+		resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
+		resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+	}
+}

@@ -1,0 +1,112 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'net.nemerosa.versioning' version '2.6.1'
+}
+
+compileJava.options.encoding = 'UTF-8'
+
+java.sourceCompatibility = JavaVersion.VERSION_1_8
+
+group 'br.com.group'
+
+version = project.version
+
+repositories {
+    mavenCentral()
+    maven {
+        url = uri('https://maven.group.com.br/repository/maven-releases/')
+    }
+    maven {
+        url = uri('https://maven.group.com.br/repository/maven-snapshots/')
+    }
+}
+
+apply from: "dependencies.gradle"
+
+jar {
+    dependsOn "copyModuleTask"
+
+	exclude('**/*Test*')
+
+    manifest {
+        attributes(
+            'Build-Timestamp': new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").format(new Date()),
+            'Build-Revision' : versioning.info.commit,
+            'Created-By'     : "Gradle ${gradle.gradleVersion}",
+            'Build-Jdk'      : "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})"
+        )
+	}
+
+    destinationDirectory = file("build/libs/custom/commons-wildfly/main/")
+}
+
+task copyModuleTask(type: Copy) {
+    dependsOn 'buildModule'
+
+    from 'src/main/resources/module/main/module.xml'
+    into 'build/libs/custom/commons-wildfly/main/'
+}
+
+task buildModule() {
+    File file = new File('src/main/resources/module/main/module.xml');
+
+    String content = file.getText('UTF-8');
+    String jarName = project.name + '-' + project.version;
+
+    content = content.replace('commons-wildfly-module', jarName);
+    
+    file.write(content);
+}
+
+task zipArtifacts(type: Zip) {
+    from 'build/libs/'
+    exclude '*.zip'
+    destinationDir(file('build/libs/'))
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+
+            def artifactFilePath = 'build/libs/' + project.name + '-' + project.version
+
+            artifact(jar.archiveFile) {
+                extension 'jar'
+            }
+            artifact(artifactFilePath + '.zip') {
+                extension 'zip'
+            }
+        }
+    }
+    repositories {
+        maven {
+			name 'nexus'
+			url resolveNexusRepository()
+            credentials {
+                username System.getenv("NEXUS_USER")
+                password System.getenv("NEXUS_PASSWORD")
+            }
+        }
+    }
+}
+
+def resolveNexusRepository() {
+	def repository = "maven-releases";
+	if (project.hasProperty('repository')) {
+		repository = project.repository;
+	}
+
+	return "https://maven.group.com.br/repository/" + repository + "/";
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir "src"
+        }
+        resources {
+            exclude "**/*"
+        }
+	}
+}

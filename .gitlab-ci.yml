@@ -1,0 +1,60 @@
+image: $DEVOPS_GRADLE_IMAGE
+
+stages:
+  - test
+  - build
+  - publish
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH !~ /^master|develop$/ && $CI_PIPELINE_SOURCE =~ /^push|merge_request_event$/
+      when: never
+    - when: always
+
+testing:
+  stage: test
+  tags:
+    - QM
+  script:
+    - gradle --build-cache test;
+  artifacts:
+    paths:
+      - build/
+      - .gradle/
+    expire_in: 30 minutes
+
+building:
+  stage: build
+  tags:
+    - QM
+  script:
+    - >
+      gradle --build-cache build -Pversion="${CI_COMMIT_REF_NAME}";
+  artifacts:
+    paths:
+      - build/
+      - .gradle/
+    expire_in: 30 minutes
+
+publishing:
+  stage: publish
+  tags:
+    - QM
+  needs:
+    - building
+    - testing
+  rules:
+    - if: $CI_PIPELINE_SOURCE != 'merge_request_event'
+  script:
+    - >
+      if [[ $CI_COMMIT_BRANCH =~ "master" ]]; then
+        MAVEN_REPOSITORY="maven-releases";
+      else 
+        MAVEN_REPOSITORY="maven-snapshots";
+      fi;
+    - >
+      gradle --build-cache zipArtifacts publish -Pversion="${CI_COMMIT_REF_NAME}" -Prepository="${MAVEN_REPOSITORY}";
+  artifacts:
+    paths:
+      - build/libs/
+    expire_in: 6 hours
